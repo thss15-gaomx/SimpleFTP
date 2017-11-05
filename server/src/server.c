@@ -9,15 +9,49 @@
 #include <memory.h>
 #include <stdio.h>
 #include <arpa/inet.h>
+#include <pthread.h>
 
 #include "params.h"
 #include "handlers.h"
 
-int main(int argc, char **argv) {
-	struct sockaddr_in addr;
+void process(Client* client){
 	char sentence[8192];
 	int p;
 	int len;
+
+	while(1) {
+		p = 0;
+		while (1) {
+			int n = read(client->connfd, sentence + p, 8191 - p);
+			if (n < 0) {
+				printf("Error read(): %s(%d)\n", strerror(errno), errno);
+				close(client->connfd);
+				continue;
+			} else if (n == 0) {
+				break;
+			} else {
+				p += n;
+				if (sentence[p - 1] == '\n') {
+					break;
+				}
+			}
+		}
+
+		sentence[p - 1] = '\0';
+		len = p - 1;
+
+		clientHandler(client, sentence);
+
+		if (client->status == STATUS_QUIT) {
+			free(client);
+			break;
+		}
+	}
+	close(client->connfd);
+}
+
+int main(int argc, char **argv) {
+	struct sockaddr_in addr;
 
     defaultPort = 21;
     strcpy(defaultRoot, "/tmp");
@@ -56,54 +90,23 @@ int main(int argc, char **argv) {
 		return 1;
 	}
 
-	status = -1;
-    port = -1;
-    filefd = -1;
-    mode = THREAD_MODE_NON;
-    rnflag = 0;
-    strcpy(path, "/");
-    strcpy(root, defaultRoot);
-
+	int connfd;
 	while (1) {
 		if ((connfd = accept(listenfd, NULL, NULL)) == -1) {
 			printf("Error accept(): %s(%d)\n", strerror(errno), errno);
 			continue;
 		}
 		else{
-			status = 0;
 			if (write(connfd, S220, strlen(S220)) == -1)
 				printf("Error write(): %s(%d)\n", strerror(errno), errno);
 		}
 
-		while(1) {
-			p = 0;
-			while (1) {
-				int n = read(connfd, sentence + p, 8191 - p);
-				if (n < 0) {
-					printf("Error read(): %s(%d)\n", strerror(errno), errno);
-					close(connfd);
-					continue;
-				} else if (n == 0) {
-					break;
-				} else {
-					p += n;
-					if (sentence[p - 1] == '\n') {
-						break;
-					}
-				}
-			}
-
-			sentence[p - 1] = '\0';
-			len = p - 1;
-
-			clientHandler(connfd, sentence);
-
-            if (status == STATUS_QUIT) break;
-		}
-		close(connfd);
-        break;
+		pthread_t pid;
+		Client* client = (Client*)malloc(sizeof(Client));
+        initClient(client);
+        client->connfd = connfd;
+        pthread_create(&pid, NULL, (void*)process, client);
 	}
 	close(listenfd);
     return 0;
 }
-

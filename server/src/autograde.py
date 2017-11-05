@@ -36,7 +36,7 @@ def create_test_file(filename):
     f.write(data)
   f.close()
 
-def test(port=21, directory='/tmp'):
+def test(port=6788, directory='/tmp'):
   global credit
   if port == 21 and directory == '/tmp':
     server = subprocess.Popen('./server', stdout=subprocess.PIPE)

@@ -65,8 +65,9 @@ int main(int argc, char **argv) {
 			printf("->");
 			fgets(sentence, 4096, stdin);
 			len = strlen(sentence);
-			sentence[len] = '\n';
-			sentence[len + 1] = '\0';
+			sentence[len - 1] = '\r';
+            sentence[len] = '\n';
+            sentence[len + 1] = '\0';
 
 			p = 0;
             cmd = cmdType(sentence);
@@ -104,10 +105,12 @@ int main(int argc, char **argv) {
             continue;
 
 		if (status == STATUS_START) {
-			if (strstr(sentence, "220") == sentence)
-				status = STATUS_CMD;
+			if (strstr(sentence, "220") == sentence) {  //server: connecting success
+                status = STATUS_CMD;
+                printf("FROM SERVER: %s", sentence);
+            }
 		} else if (status == STATUS_CMD) {
-            if (strstr(sentence, "451") == sentence)
+            if (strstr(sentence, "451") == sentence || strstr(sentence, "550") == sentence)   //server: fail to open file
                 printf("FROM SERVER: %s", sentence);
             else {
                 cmdHandler(sentence);

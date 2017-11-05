@@ -19,6 +19,7 @@ char filename[100];
 #define THREAD_MODE_PORT 1
 #define THREAD_MODE_PASV 2
 
+#define MODE_NONE -2
 #define ERROR -1
 #define WRONG_CMD 0
 #define USER 1
@@ -34,4 +35,7 @@ char filename[100];
 #define CWD 11
 #define RMD 12
 #define LIST 13
-#define QUIT 14
+#define DELE 14
+#define QUIT 15
+#define RNFR 16
+#define RNTO 17

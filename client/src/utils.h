@@ -26,7 +26,7 @@ char* parseFilename(char* sentence, char* cmd) {
     else
         *param = '\0';
     for (int i = strlen(param) - 1; i >= 0; i--){
-        if(strchr(" \r\n\t", param[i]) != NULL)
+        if(strchr("\r\n\t", param[i]) != NULL)
             param[i] = '\0';
     }
     char* filename = (char*)malloc((sizeof(char)) * strlen(param));
@@ -83,6 +83,8 @@ int cmdType(char* sentence) {
                 filefd = -1;
                 return ERROR;
             }
+        } else if (mode == THREAD_MODE_NON) {
+            return MODE_NONE;
         }
         strcpy(cmd, parseFilename(sentence, "STOR"));
         f = fopen(cmd, "r");
@@ -105,6 +107,8 @@ int cmdType(char* sentence) {
                 filefd = -1;
                 return ERROR;
             }
+        } else if (mode == THREAD_MODE_NON) {
+            return MODE_NONE;
         }
         strcpy(filename, parseFilename(sentence, "STOR"));
         return RETR;
@@ -125,7 +129,10 @@ int cmdType(char* sentence) {
         }
         return LIST;
     }
+    else if (judgeCmd(sentence, "DELE")) return DELE;
     else if (judgeCmd(sentence, "QUIT")) return QUIT;
+    else if (judgeCmd(sentence, "RNFR")) return RNFR;
+    else if (judgeCmd(sentence, "RNTO")) return RNTO;
     else return WRONG_CMD;
 }
 
@@ -171,18 +178,18 @@ void cmdHandler(char* sentence) {
         case STOR:
             if (mode == THREAD_MODE_PASV)
                 connfd = filefd;
-            else {
+            else if (mode == THREAD_MODE_PORT) {
                 struct sockaddr addr;
                 socklen_t len;
                 connfd = accept(filefd, &addr, &len);
                 if (connfd == -1) {
-                    printf("accept error\n");
+                    printf("Error accept(): %s(%d)\n", strerror(errno), errno);
                     return;
                 }
             }
             f = fopen(filename, "r");
             if (f == NULL) {
-                printf("open error\n");
+                printf("Error fopen(): %s(%d)\n", strerror(errno), errno);
                 return;
             }
             while (1) {
@@ -209,27 +216,27 @@ void cmdHandler(char* sentence) {
         case RETR:
             if (mode == THREAD_MODE_PASV)
                 connfd = filefd;
-            else {
+            else if (mode == THREAD_MODE_PORT) {
                 struct sockaddr addr;
                 socklen_t len;
                 connfd = accept(filefd, &addr, &len);
                 if (connfd == -1) {
-                    printf("accept error\n");
+                    printf("Error accept(): %s(%d)\n", strerror(errno), errno);
                     return;
                 }
             }
             f = fopen(filename, "w");
             if (f == NULL) {
-                printf("open error\n");
+                printf("Error fopen(): %s(%d)\n", strerror(errno), errno);
                 return;
             }
             while (1) {
                 len = read(connfd, buff, sizeof buff);
                 if (len == -1) {
-                    printf("read error\n");
+                    printf("Error read(): %s(%d)\n", strerror(errno), errno);
                     break;
                 } else if (len == 0) {
-                    printf("finish reading\r\n");
+                    printf("Complete reading\r\n");
                     break;
                 }
                 fwrite(buff, len, 1, f);
@@ -243,23 +250,23 @@ void cmdHandler(char* sentence) {
         case LIST:
             if (mode == THREAD_MODE_PASV)
                 connfd = filefd;
-            else {
+            else if (mode == THREAD_MODE_PORT) {
                 struct sockaddr addr;
                 socklen_t len;
                 connfd = accept(filefd, &addr, &len);
                 if (connfd == -1) {
-                    printf("accept error\n");
+                    printf("Error accept(): %s(%d)\n", strerror(errno), errno);
                     return;
                 }
             }
             while (1) {
                 len = read(connfd, buff, sizeof buff);
                 if (len == -1) {
-                    printf("read error\n");
+                    printf("Error read(): %s(%d)\n", strerror(errno), errno);
                     break;
                 }
                 else if (len == 0) {
-                    printf("finish reading\r\n");
+                    printf("Complete reading\r\n");
                     break;
                 }
                 fwrite(buff, len, 1, stderr);
